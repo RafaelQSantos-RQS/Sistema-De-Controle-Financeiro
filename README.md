@@ -23,3 +23,5 @@ Outras funcionalidades:
 
 ⚠️ **Atenção**:
 - Não utilize a biblioteca pandas para resolução desse exercício
+
+## Desenvolvimento
