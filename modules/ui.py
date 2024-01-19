@@ -23,6 +23,12 @@ class JanelaPrincipal:
         # Centraliza a janela
         self.janela.eval('tk::PlaceWindow . center')
 
+        # Configurações
+        self.config()
+    
+    def config(self):
+        self.janela.config(borderwidth=0,relief='ridge')
+
     def init_camadas(self):
         '''
         '''
