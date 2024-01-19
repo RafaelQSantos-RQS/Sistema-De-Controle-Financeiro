@@ -1,5 +1,5 @@
 from modules.ui import JanelaPrincipal
-from modules.utilities import create_database,insert_values
+from modules.database import atualiza_rendimento, create_database,insert_values
 '''
 def main():
     main_frame = JanelaPrincipal() # Instanciando a janela principal
@@ -10,7 +10,8 @@ def main():
 '''
 def main():
     create_database()
-    insert_values(14,"Receita")
+    insert_values(14,"Investimento",taxa=1.0)
+    #atualiza_rendimento()
 
 if __name__ == "__main__":
     main()
