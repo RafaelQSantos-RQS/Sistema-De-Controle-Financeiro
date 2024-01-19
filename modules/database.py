@@ -1,6 +1,7 @@
 import os
 import json
-from modules.utilities import hoje
+from datetime import datetime
+from modules.utilities import hoje,calc_montante
 
 def create_database() -> None:
     """
@@ -33,12 +34,12 @@ def create_database() -> None:
 
     # Creates a JSON dictionary with keys "data", "type", "value", and "amount", all with initial values of None
     json_base = {
-        "Data de Criação": [],
-        "Última Atualização"
-        "Tipo": [],
-        "Valor": [],
-        "Taxa":[],
-        "Montante": []
+        "data_de_criacao": [],
+        "ultima_atualizacao": [],
+        "tipo": [],
+        "valor": [],
+        "taxa":[],
+        "montante": []
     }
 
     # Opens the "database.json" file in write mode
@@ -60,11 +61,18 @@ def atualiza_rendimento() -> None:
     with open(database_path,'r') as file:
         database = json.load(file)
     
-    for i in range(0,len(database['data'])):
-        print(f"data: {database['data'][i]} | tipo: {database['tipo'][i]} | valor: {database['valor'][i]} | montante: {database['montante'][i]}")
+    for i in range(0,len(database['data_de_criacao'])):
+        if database['tipo'][i].lower() == "investimento":
+            dia_da_transacao,dia_atual = datetime.strptime(database['data_de_criacao'][i],"%d/%m/%Y %H:%M:%S"),datetime.today()
+            dias_passados = abs((dia_atual - dia_da_transacao).days)
+            print(f"Passaram-se {dias_passados} dias")
+            database['ultima_atualizacao'][i] = hoje()
+            database['montante'][i] = round(calc_montante(capital=database['valor'][i],taxa=database['taxa'][i],tempo=dias_passados),2)
 
+    with open(database_path,'w') as file:
+            json.dump(database,file,indent=4)
 
-def insert_values(valor:float,tipo:str,taxa:float=None) -> None:
+def inserir_valor(valor:float,tipo:str,taxa:float=None) -> None:
     '''
     '''
 
@@ -81,12 +89,12 @@ def insert_values(valor:float,tipo:str,taxa:float=None) -> None:
         database = json.load(file)
     
     try:
-        database['Data de Criação'].append(hoje())
-        database['Última Atualização'].append(hoje())
-        database['Tipo'].append(tipo)
-        database['Valor'].append(valor)
-        database['Taxa'].append(taxa if tipo.casefold() == "investimento".casefold() else None)
-        database['Montante'].append(None)
+        database['data_de_criacao'].append(hoje())
+        database['ultima_atualizacao'].append(hoje())
+        database['tipo'].append(tipo)
+        database['valor'].append(valor)
+        database['taxa'].append(taxa if tipo.casefold() == "investimento".casefold() else None)
+        database['montante'].append(None)
 
         with open(database_path,'w') as file:
             json.dump(database,file,indent=4)
