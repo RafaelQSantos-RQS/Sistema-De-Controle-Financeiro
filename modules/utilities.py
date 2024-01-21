@@ -1,7 +1,7 @@
 
 from datetime import datetime
 
-def hoje() -> None:
+def hoje() -> str:
     '''
     '''
     return datetime.today().strftime("%d/%m/%Y %H:%M:%S")
