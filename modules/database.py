@@ -72,7 +72,7 @@ def atualiza_rendimento() -> None:
         with open(database_path,'r') as file:
             database = json.load(file)
         
-        for i in range(0,len(database['data_de_criacao'])):
+        for i in database['id']:
             if database['tipo'][i].lower() == "investimento":
                 dia_da_transacao,dia_atual = datetime.strptime(database['data_de_criacao'][i],"%d/%m/%Y %H:%M:%S"),datetime.today()
                 dias_passados = abs((dia_atual - dia_da_transacao).days)
@@ -86,7 +86,7 @@ def atualiza_rendimento() -> None:
         error("Erro ao atualizar os investimentos")
         raise err
 
-def inserir_valor(valor:float,tipo:Literal['Receita','Despesas','Investimento'],taxa:float=None) -> None:
+def inserir_registro(valor:float,tipo:Literal['Receita','Despesas','Investimento'],taxa:float=None) -> None:
     '''
     '''
     info("Inserindo valor no banco de dados.")
@@ -195,4 +195,75 @@ def deletar_registro(id:int):
         info(f"Registro de id {id} deletado com sucesso!")
     except Exception as err:
         error("Erro ao atualizar os investimentos")
+        raise err
+    
+def alterar_registro(id:int,valor:float=None,tipo:Literal['Receita','Despesas','Investimento'] = None,taxa:float=None) -> bool:
+    '''
+    '''
+    # Verificando se o arquivo de banco de dados existe
+    database_path = 'database.json'
+    try:
+        with open(database_path, 'r') as file:
+            database = json.load(file)
+    except FileNotFoundError:
+        raise FileNotFoundError("Arquivo 'database.json' não encontrado! Registro não alterador!")
+    
+    # Verifica se o ID existe na base de dados
+    if id not in database['id']:
+        raise Exception(f"Registro com id {id} não encontrado! Registro não alterador!")
+    
+    if valor is None and tipo is None:
+        raise Exception("Ou tipo ou valor precisame estar preenchidos! Registro não alterador!")
+    
+    # Verifica a entrada errada o usuário
+    if tipo == "Investimento" and taxa is not None:
+        if not isinstance(taxa, float):
+            raise Exception("Taxa precisa receber um valor float! Registro não alterado!")
+        if taxa < 0:
+            raise Exception("Taxa precisa ser maior ou igual 0! Registro não alterador!")
+    
+    try:
+        for i in database['id']:
+            if i == id:
+                database['ultima_atualizacao'][i] = hoje()
+                if tipo is None:
+                    database['valor'][i] = valor
+                else:
+                    match(tipo):
+                        case "Receita":
+                            database['tipo'][i] = tipo
+                            database['taxa'][i] = None
+                            database['montante'][i] = None
+                            if valor is None:
+                                database['valor'][i] = database['valor'][i] if database['valor'][i] >= 0 else database['valor'][i]*(-1)
+                            else:
+                                database['valor'][i] = valor   
+                        case "Despesas":
+                            database['tipo'][i] = tipo
+                            database['taxa'][i] = None
+                            database['montante'][i] = None
+                            if valor is None:
+                                database['valor'][i] = database['valor'][i] if database['valor'][i] <= 0 else database['valor'][i]*(-1)
+                            else:
+                                database['valor'][i] = valor
+                        case "Investimento":
+                            database['tipo'][i] = tipo
+                            database['taxa'][i] = taxa if  taxa is not None else database['taxa'][i] if database['taxa'][i] is None else 0.0
+                            database['montante'][i] = None
+                            if valor is None:
+                                database['valor'][i] = database['valor'][i] if database['valor'][i] >= 0 else database['valor'][i]*(-1)
+                            else:
+                                database['valor'][i] = valor
+        
+        try:
+            with open(database_path,'w') as file:
+                json.dump(database,file,indent=4)
+        except Exception as err:
+            error("Erro ao salvar a base de dados!")
+            raise err
+        
+        info("Registro alterado com sucesso!")
+
+    except Exception as err:
+        error(f"Erro inesperado ao alterar o registro -> {err}")
         raise err

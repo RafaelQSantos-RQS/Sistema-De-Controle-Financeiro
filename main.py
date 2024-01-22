@@ -1,5 +1,5 @@
 from modules.ui import JanelaPrincipal
-from modules.database import atualiza_rendimento, create_database,inserir_valor,deletar_registro
+from modules.database import atualiza_rendimento, create_database,inserir_registro,deletar_registro,alterar_registro
 from logging import INFO, basicConfig
 
 basicConfig(level=INFO, format=f'[%(asctime)s]: %(message)s',datefmt='%d/%m/%Y %H:%M:%S')
@@ -14,8 +14,8 @@ def main():
 def main():
     create_database()
     atualiza_rendimento()
-    inserir_valor(valor=13,tipo='Investimento',taxa=0.014)
-    #deletar_registro(id=3)
+    inserir_registro(valor=18,tipo='Receita',taxa=0.014)
+    alterar_registro(id=0,tipo="Investimento")
 
 if __name__ == "__main__":
     main()
