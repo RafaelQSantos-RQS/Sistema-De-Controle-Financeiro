@@ -73,7 +73,7 @@ def atualiza_rendimento() -> None:
             database = json.load(file)
         
         for i in database['id']:
-            if database['tipo'][i].lower() == "investimento":
+            if database['tipo'][i] == "Investimento":
                 dia_da_transacao,dia_atual = datetime.strptime(database['data_de_criacao'][i],"%d/%m/%Y %H:%M:%S"),datetime.today()
                 dias_passados = abs((dia_atual - dia_da_transacao).days)
                 database['ultima_atualizacao'][i] = hoje()

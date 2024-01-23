@@ -14,8 +14,8 @@ def main():
 def main():
     create_database()
     atualiza_rendimento()
-    inserir_registro(valor=18,tipo='Receita',taxa=0.014)
-    alterar_registro(id=0,tipo="Investimento")
+    #inserir_registro(valor=18,tipo='Receita',taxa=0.014)
+    #alterar_registro(id=0,tipo="Investimento")
 
 if __name__ == "__main__":
     main()
