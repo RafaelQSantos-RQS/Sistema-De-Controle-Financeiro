@@ -1,5 +1,5 @@
 from modules.ui import JanelaPrincipal
-from modules.database import atualiza_rendimento, create_database,inserir_registro,deletar_registro,alterar_registro
+from modules.database import Localbase
 from logging import INFO, basicConfig
 
 basicConfig(level=INFO, format=f'[%(asctime)s]: %(message)s',datefmt='%d/%m/%Y %H:%M:%S')
@@ -12,10 +12,11 @@ def main():
     main_frame.rodar()
 '''
 def main():
-    create_database()
-    atualiza_rendimento()
-    #inserir_registro(valor=18,tipo='Receita',taxa=0.014)
-    #alterar_registro(id=0,tipo="Investimento")
+    database = Localbase(database_file='database.csv')
+    database.atualiza_rendimento()
+    database.inserir_registro(14,'Despesas',taxa=0.14)
+    database.inserir_registro(150,'Despesas')
+    database.deletar_registro(2)
 
 if __name__ == "__main__":
     main()
