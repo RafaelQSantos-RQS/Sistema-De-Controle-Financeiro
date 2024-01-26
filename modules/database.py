@@ -1,7 +1,10 @@
+import os
 import csv
+import json
 from pathlib import Path
 from datetime import datetime
 from logging import info, error
+from prettytable import PrettyTable
 from typing import NoReturn,Literal,Optional
 from modules.utilities import hoje,calc_montante
 
@@ -133,6 +136,106 @@ class Localbase:
             error(f"Erro desconhecido! -> {err}")
             raise err
         
+    def ler_registros(self,data:tuple=None,tipo:Literal['Receita','Despesas','Investimento']=None,valor:tuple=None,print_table:bool=False) -> Optional[list]:
+        '''
+        Lê registros do banco de dados com base nos filtros fornecidos.
+
+        Parâmetros
+        ----------
+        - data (tuple): Um intervalo de datas representado por uma tupla de duas strings no formato '%d/%m/%Y'. 
+                        Se fornecido, filtra registros com data dentro desse intervalo.
+        - tipo (Literal['Receita', 'Despesas', 'Investimento']): Tipo de transação a ser filtrado. Se fornecido,
+                        filtra registros apenas pelo tipo especificado.
+        - valor (tuple): Um intervalo de valores representado por uma tupla de dois floats. Se fornecido,
+                        filtra registros com valores dentro desse intervalo.
+        - print_table (bool): Se True, imprime os resultados em forma de tabela. Se False, retorna os resultados como uma lista.
+
+        Retorna
+        -------
+        - Se print_table for `True`, imprime os resultados na forma de uma tabela. 
+        - Se print_table for `False`, retorna uma lista contendo os registros filtrados, onde cada registro é uma lista de valores.
+
+        Raises
+        ------
+        - ValueError: Se os parâmetros fornecidos não estiverem no formato esperado ou se houver um erro ao processar os dados.
+
+        Exemplos
+        --------
+        - Para ler registros entre '01/01/2022' e '31/01/2022' do tipo 'Receita':
+        `ler_registros(data=('01/01/2022', '31/01/2022'), tipo='Receita', print_table=True)`
+        - Para ler registros com valores entre 1000.0 e 2000.0:
+        `ler_registros(valor=(1000.0, 2000.0), print_table=False)`
+        '''
+        try:
+            database_path = self.database_path
+            with open(database_path,'r',newline='',encoding='utf-8') as database:
+                leitor = csv.reader(database,delimiter=';')
+                cabecalho = next(leitor)
+                linhas = list(leitor)
+
+                # Filtro de data
+                if data is not None:
+
+                    # Verificação de entrada do usuário
+                    if not isinstance(data, tuple) or len(data) != 2:
+                        raise ValueError("A entrada de data deve ser uma tupla contendo duas strings.")
+                    for data_str in data:
+                        try:
+                            datetime.strptime(data_str, "%d/%m/%Y")
+                        except ValueError:
+                            raise ValueError(f"Formato de data inválido: {data_str}. Utilize o formato %d/%m/%Y.")
+                        
+                    data_inicial,data_final = datetime.strptime(data[0],"%d/%m/%Y"),datetime.strptime(data[1],"%d/%m/%Y").replace(hour=23,minute=59,second=59)
+                    linhas_filtro_data = [linha for linha in linhas if data_inicial <= datetime.strptime(linha[1],"%d/%m/%Y %H:%M:%S") <= data_final]
+                else:
+                    linhas_filtro_data = [linha for linha in linhas]
+
+                # Filtro de tipo
+                if tipo is not None:
+                    
+                    # Verificação de entrada do usuário
+                    if tipo not in ['Receita','Despesas','Investimento']:
+                        raise ValueError("Este tipo transação não permitido!")
+                    
+                    linhas_filtro_tipo = [linha for linha in linhas_filtro_data if linha[-4] == tipo]
+                else:
+                    linhas_filtro_tipo = [linha for linha in linhas_filtro_data]
+
+                # Filtro
+                if valor is not None:
+
+                    # Verificação de entrada do usuário
+                    if not isinstance(valor, tuple) or len(valor) != 2:
+                        raise ValueError("A entrada de valor deve ser uma tupla contendo dois floats.")
+                    
+                    for valor_str in valor:
+                        try:
+                            float(valor_str)
+                        except ValueError:
+                            raise ValueError(f"Formato de valor inválido: {valor_str}. Utilize valores numéricos.")
+
+                    valor_inicial,valor_final = float(valor[0]),float(valor[1])
+                    linhas_filtro_valor = [linha for linha in linhas_filtro_tipo if valor_inicial <= float(linha[-3]) <= valor_final]
+                else:
+                    linhas_filtro_valor = [linha for linha in linhas_filtro_tipo]
+
+                # Imprimindo tabela ou retornando
+                if not isinstance(print_table,bool):
+                    raise ValueError("Valor inserido na variável print_table deve ser booleana (True | False)")
+                    
+                if print_table:
+                    table = PrettyTable()
+                    table.field_names = cabecalho
+                    table.add_rows(linhas_filtro_valor)
+                    print(table)
+                else:
+                    linhas_filtro_valor.insert(0,list(cabecalho))
+                    return linhas_filtro_valor
+
+        except Exception as err:
+            error(f"Erro ao ler registros -> {err}")
+            raise err
+        
     def deletar_registro(self,id:int) -> NoReturn:
         """
         Deleta um registro da base de dados com base no ID fornecido.
@@ -241,3 +344,81 @@ class Localbase:
 
         except Exception as err:
             pass
+
+    def exportar_relatorio(self,path:str = '.',formato:Literal['csv','json'] = 'csv',**kwargs):
+        '''
+        Exporta um relatório para o formato especificado.
+
+        Parâmetros
+        ----------
+        - path (str): O caminho do diretório onde o relatório será exportado. Padrão: diretório atual.
+        - formato (Literal['csv', 'json']): O formato de exportação do relatório. Padrão: 'csv'.
+        - **kwargs: Parâmetros adicionais a serem passados para a função ler_registros.
+
+        Parâmetros Extras (via **kwargs)
+        ---------------------------------
+        - tipo (Literal['Receita', 'Despesas', 'Investimento']): Filtro por tipo de transação.
+        - valor (tuple): Filtro por faixa de valores.
+        - data (tuple): Filtro por intervalo de datas no formato ("%d/%m/%Y", "%d/%m/%Y").
+
+        Raises
+        ------
+        - ValueError: Se o formato fornecido não for 'csv' ou 'json'.
+        - ValueError: Se o diretório fornecido não existir.
+        - ValueError: Se não houver permissão de escrita no diretório fornecido.
+        - Exception: Qualquer erro durante o processo de exportação.
+
+        Exemplos
+        --------
+        - Exportar um relatório CSV no diretório atual:
+            exportar_relatorio(formato='csv')
+        - Exportar um relatório JSON em um diretório específico:
+            exportar_relatorio(path='/caminho/do/diretorio', formato='json', tipo='Receita', valor=(100, 500))
+        '''
+        try:
+            # Verificar se o formato é válido
+            info("Verificando se o formato é válido")
+            if formato not in ['csv','json']:
+                raise ValueError("O formato inserido não é válido")
+            
+            # Verificar se o diretório existe
+            info("Verificando se o diretório existe")
+            if not os.path.exists(path):
+                raise ValueError("O diretório fornecido não existe.")
+
+            # Verificar se o diretório é acessível
+            info("Verificando se o diretório é acessível")
+            if not os.access(path, os.W_OK):
+                raise ValueError("Sem permissão para escrever no diretório fornecido.")
+            
+            kwargs.pop('print_table',None)
+            dados = self.ler_registros(**kwargs)
+
+            match(formato):
+                case 'csv':
+                    try:
+                        info("Exportando para csv")
+                        with open(os.path.join(path,'relatorio.csv'),'w',newline='',encoding='utf-8') as csv_file:
+                            escritor = csv.writer(csv_file,delimiter=';')
+                            escritor.writerows(dados)
+                    except Exception as err:
+                        error("Erro ao exportar para csv!")
+                        raise err
+                case 'json':
+                    try:
+                        info("Exportando para json")
+                        cabecalho = dados[0]
+                        lista_de_dicionarios = [dict(zip(cabecalho, linha)) for linha in dados[1:]]
+                        dicionario = {
+                            'data_de_exportacao':hoje(),
+                            'dados':lista_de_dicionarios
+                        }
+                        with open(os.path.join(path,'relatorio.json'),'w') as json_file:
+                            json_file.write(json.dumps(dicionario,indent=2))
+                    except Exception as err:
+                        error("Erro ao exportar para json!")
+                        raise err
+            info("Exportação feita com sucesso!!")
+        except Exception as err:
+            error(f"Erro ao exportar o relatório -> {err}")
+            raise err
