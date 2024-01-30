@@ -358,7 +358,7 @@ class Localbase:
                                 linha[-2] = taxa
                         elif valor is not None and tipo is not None and taxa is None: # Caso 4 (Valor e Tipo)
                             tipo_anterior = linha[-4]
-                            linha[-3] = valor if tipo_anterior != "Despesas" else abs(valor) * -1  # Valor
+                            linha[-3] = valor if tipo != "Despesas" else -valor if tipo_anterior != "Despesas" else abs(valor) * -1
                             linha[-1] = None if tipo in ["Receita", "Despesas"] else linha[-1]  # Montante
                             linha[-2] = None if tipo != "Investimento" else linha[-2]  # Taxa
                             linha[-4] = tipo  # Tipo
@@ -371,6 +371,7 @@ class Localbase:
                                 linha[-2] = taxa
             with open(database_path,'w',newline='',encoding='utf-8') as database:
                 escritor = csv.writer(database, delimiter=';')
+                escritor.writerow(cabecalho)
                 escritor.writerows(linhas)
 
             info(f"Registro de {id} alterado com sucesso!!")
@@ -456,3 +457,47 @@ class Localbase:
         except Exception as err:
             error(f"Erro ao exportar o relatório -> {err}")
             raise err
+        
+    def relatorio_geral_agrupado(self, mes_ano=True):
+        '''
+        Gera um relatório agrupado com base nas transações do arquivo CSV, agrupando por mês e ano ou apenas por ano.
+
+        Args:
+            ano_mes (bool, optional): Se True, agrupa por mês e ano; se False, agrupa por ano. Padrão é False.
+
+        Raises:
+            FileNotFoundError: Se o arquivo CSV não for encontrado.
+            csv.Error: Se houver um erro ao processar o arquivo CSV.
+
+        Returns:
+            NoReturn: Não retorna nada, imprime o relatório agrupado.
+        '''
+        try:
+            database_path = self.database_path
+            with open(database_path, 'r', newline='', encoding='utf-8') as database:
+                leitor = csv.reader(database, delimiter=';')
+                cabecalho = next(leitor)
+                linhas = list(leitor)
+        except Exception as e:
+            print("Erro ao abrir a base de dados")
+            raise e
+
+        agrupamento = {}
+        for linha in linhas:
+            valor = float(linha[-3])
+            tipo = linha[-4]
+            data_criacao = datetime.strptime(linha[1], "%d/%m/%Y %H:%M:%S")
+
+            if mes_ano:
+                chave = data_criacao.strftime("%m/%Y")
+            else:
+                chave = data_criacao.strftime("%Y")
+
+            if chave not in agrupamento:
+                agrupamento[chave] = {}
+
+            agrupamento[chave][tipo] = agrupamento[chave].get(tipo, 0) + valor
+        for chave, valores in agrupamento.items():
+            agrupamento[chave]['total'] = sum(valores.values())
+
+        print(json.dumps(agrupamento, indent=2))
