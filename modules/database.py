@@ -214,7 +214,7 @@ class Localbase:
                         except ValueError:
                             raise ValueError(f"Formato de valor inválido: {valor_str}. Utilize valores numéricos.")
 
-                    valor_inicial,valor_final = float(valor[0]),float(valor[1])
+                    valor_inicial,valor_final = valor[0],valor[1]
                     linhas_filtro_valor = [linha for linha in linhas_filtro_tipo if valor_inicial <= float(linha[-3]) <= valor_final]
                 else:
                     linhas_filtro_valor = [linha for linha in linhas_filtro_tipo]
@@ -303,6 +303,19 @@ class Localbase:
         
     def alterar_registro(self,id:int,valor:Optional[float]=None,tipo:Optional[Literal['Receita','Despesas','Investimento']] = None,taxa:Optional[float]=None):
         '''
+        Altera um registro no banco de dados.
+
+        Parâmetros
+        ----------
+        - id (int): O identificador único do registro.
+        - valor (float): O novo valor do registro. Padrão: None.
+        - tipo (Literal['Receita', 'Despesas', 'Investimento']): O novo tipo do registro. Padrão: None.
+        - taxa (float): A nova taxa do registro (aplicável apenas a investimentos). Padrão: None.
+
+        Raises
+        ------
+        - ValueError: Se ocorrer um erro durante a alteração.
+
         '''
         try:
             if not isinstance(id,int):
@@ -329,21 +342,42 @@ class Localbase:
                     if int(linha[0]) == id:
                         if valor is not None and tipo is None and taxa is None: # Caso 1 (Só valor)
                             linha[-3] = valor if linha[-4] != "Despesas" else abs(valor)*-1
-                        if valor is None and tipo is not None: # Caso 2 (Só Tipo)
+                        elif valor is None and tipo is not None: # Caso 2 (Só Tipo)
                             tipo_anterior = linha[-4]
                             linha[-3] = abs(float(linha[-3])) * (-1 if tipo_anterior == "Despesas" else 1)  # Valor
                             linha[-1] = None if tipo in ["Receita","Despesas"] else linha[-1] # Montante
-                            linha[-2] = taxa if tipo == "Investimento" else None # Taxa
+                            linha[-2] = None if tipo != "Investimento" else taxa # Taxa
                             linha[-4] = tipo # Tipo
                             linha[2] = hoje() # Última atualização
-                        if valor is None and tipo is None and taxa is not None: # Caso 3 (Só Taxa)
+                        elif valor is None and tipo is None and taxa is not None: # Caso 3 (Só Taxa)
                             if linha[-4] != "Investimento":
                                 raise ValueError("A operação não pode ser feita, taxa só pode se alterado em registro de investimento")
                             else:
+                                if not isinstance(taxa,float):
+                                    raise ValueError("A taxa só pode ser float.")
                                 linha[-2] = taxa
+                        elif valor is not None and tipo is not None and taxa is None: # Caso 4 (Valor e Tipo)
+                            tipo_anterior = linha[-4]
+                            linha[-3] = valor if tipo_anterior != "Despesas" else abs(valor) * -1  # Valor
+                            linha[-1] = None if tipo in ["Receita", "Despesas"] else linha[-1]  # Montante
+                            linha[-2] = None if tipo != "Investimento" else linha[-2]  # Taxa
+                            linha[-4] = tipo  # Tipo
+                            linha[2] = hoje()  # Última atualização
+                        elif valor is not None and tipo is None and taxa is not None: # Caso 5 (Valor e taxa)
+                            if linha[-4] != "Investimento":
+                                raise ValueError("A operação não pode ser feita, taxa só pode ser alterada em registro de investimento")
+                            else:
+                                linha[-3] = valor if linha[-4] != "Despesas" else abs(valor) * -1  # Valor
+                                linha[-2] = taxa
+            with open(database_path,'w',newline='',encoding='utf-8') as database:
+                escritor = csv.writer(database, delimiter=';')
+                escritor.writerows(linhas)
+
+            info(f"Registro de {id} alterado com sucesso!!")
 
         except Exception as err:
-            pass
+            error(f"Erro ao alterar registro -> {err}")
+            raise err
 
     def exportar_relatorio(self,path:str = '.',formato:Literal['csv','json'] = 'csv',**kwargs):
         '''
